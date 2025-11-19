@@ -1,4 +1,4 @@
-name: .NET Core CI
+name: CI + Performance Testing
 
 on:
   push:
@@ -8,23 +8,27 @@ on:
 
 jobs:
   build:
-
+    name: Build and Test (.NET 8)
     runs-on: windows-latest
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v3
+    - name: Setup .NET 8
+      uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 8.0.x
 
     - name: Restore dependencies
       run: dotnet restore
 
-    - name: Build project
-      run: dotnet build --no-restore --configuration Release
+    - name: Build and run tests
+      run: dotnet test --configuration Release --verbosity normal
 
-    - name: Run tests
-      run: dotnet test --no-restore --configuration Release --verbosity normal
+    - name: Install k6
+      run: |
+        choco install k6 -y
+
+    - name: Run performance tests (k6)
+      run: k6 run ./k6/bp_performance_test.js
