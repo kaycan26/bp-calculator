@@ -1,0 +1,146 @@
+name: CI/CD with performance and security
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1) Build + unit/BDD tests (CI stage)
+  # ---------------------------------------------------------------------------
+  ci-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build (Release)
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Run unit + BDD tests
+        run: dotnet test --no-build --verbosity normal
+
+  # ---------------------------------------------------------------------------
+  # 2) Security - dependency vulnerability scan
+  # ---------------------------------------------------------------------------
+  security-deps:
+    runs-on: ubuntu-latest
+    needs: ci-tests
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Check for vulnerable NuGet packages
+        run: dotnet list package --vulnerable
+
+  # ---------------------------------------------------------------------------
+  # 3) Performance gate - k6 load test against QA instance
+  # ---------------------------------------------------------------------------
+  performance-test:
+    runs-on: ubuntu-latest
+    needs: [ci-tests, security-deps]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Start BP Calculator (QA instance on port 5000)
+        run: |
+          dotnet run --project BPCalculator/BPCalculator.csproj --urls http://0.0.0.0:5000 &
+          # Wait for app to start
+          sleep 20
+
+      - name: Install k6
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y k6
+
+      - name: Run k6 performance tests
+        run: k6 run k6/bp_performance_test.js
+
+  # ---------------------------------------------------------------------------
+  # 4) E2E tests (placeholder) - run browser-style tests against QA instance
+  #    You can point this at Playwright/Selenium tests when you create them.
+  # ---------------------------------------------------------------------------
+  e2e-tests:
+    runs-on: ubuntu-latest
+    needs: [ci-tests, security-deps]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Start BP Calculator (QA instance on port 5000)
+        run: |
+          dotnet run --project BPCalculator/BPCalculator.csproj --urls http://0.0.0.0:5000 &
+          sleep 20
+
+      # TODO: replace this with your real E2E test project when ready
+      - name: Run E2E tests (placeholder)
+        run: echo "E2E tests would run here (e.g. Playwright/Selenium)."
+
+  # ---------------------------------------------------------------------------
+  # 5) OWASP ZAP baseline scan (lightweight 'pen test')
+  # ---------------------------------------------------------------------------
+  zap-scan:
+    runs-on: ubuntu-latest
+    needs: performance-test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Start BP Calculator (QA instance on port 5000)
+        run: |
+          dotnet run --project BPCalculator/BPCalculator.csproj --urls http://0.0.0.0:5000 &
+          sleep 20
+
+      - name: OWASP ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.12.0
+        with:
+          target: 'http://127.0.0.1:5000'
+          fail_action: false   # set to true if you want failures to block the pipeline
