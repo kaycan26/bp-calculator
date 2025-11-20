@@ -40,8 +40,8 @@ jobs:
       # Install k6 on the GitHub runner
       - name: Setup k6
         uses: grafana/setup-k6-action@v0.2
-         with:
-           version:v0.49.0
+        with:
+           version: v0.49.0
 
       # Run the k6 performance test script
       - name: Run k6 performance tests
