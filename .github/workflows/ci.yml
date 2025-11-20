@@ -12,37 +12,30 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Get the source code
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Install .NET 8 SDK
       - name: Setup .NET 8
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
 
-      # Restore NuGet packages
       - name: Restore dependencies
         run: dotnet restore
 
-      # Build and run all tests (Unit + BDD)
       - name: Build and run tests
         run: dotnet test --configuration Release --verbosity normal
 
-      # Start the BP Calculator as a QA instance on port 5000
       - name: Start BP Calculator (QA instance)
         run: |
           dotnet run --project BPCalculator/BPCalculator.csproj --configuration Release --urls http://0.0.0.0:5000 &
-          # Give the app time to start
           sleep 20
 
-      # Install k6 on the GitHub runner
       - name: Setup k6
-        uses: grafana/setup-k6-action@v0.2
+        uses: grafana/setup-k6-action@v0.1.0
         with:
-           version: v0.49.0
+          k6-version: 'v0.49.0'
 
-      # Run the k6 performance test script
       - name: Run k6 performance tests
         run: k6 run k6/bp_performance_test.js
+
