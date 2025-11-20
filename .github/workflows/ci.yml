@@ -38,10 +38,10 @@ jobs:
           sleep 20
 
       # Install k6 on the GitHub runner
-      - name: Install k6
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y k6
+      - name: Setup k6
+        uses: grafana/setup-k6-action@v0.2
+         with:
+           version:v0.49.0
 
       # Run the k6 performance test script
       - name: Run k6 performance tests
