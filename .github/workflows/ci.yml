@@ -7,28 +7,35 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build:
-    name: Build and Test (.NET 8)
-    runs-on: windows-latest
+  build-and-perf:
+    name: Build, Test and k6 Performance Gate
+    runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Setup .NET 8
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: 8.0.x
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
 
-    - name: Restore dependencies
-      run: dotnet restore
+      - name: Restore dependencies
+        run: dotnet restore
 
-    - name: Build and run tests
-      run: dotnet test --configuration Release --verbosity normal
+      - name: Build and run tests
+        run: dotnet test --configuration Release --verbosity normal
 
-    - name: Install k6
-      run: |
-        choco install k6 -y
+      - name: Start BP Calculator (QA instance)
+        run: |
+          dotnet run --project BPCalculator/BPCalculator.csproj --configuration Release --urls http://0.0.0.0:5000 &
+          sleep 20
 
-    - name: Run performance tests (k6)
-      run: k6 run ./k6/bp_performance_test.js
+      - name: Setup k6
+        uses: grafana/setup-k6-action@v1
+        with:
+          k6-version: '0.49.0'
+
+      - name: Run k6 performance tests
+        run: k6 run k6/bp_performance_test.js
+
